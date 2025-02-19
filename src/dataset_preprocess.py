@@ -3,6 +3,7 @@
 
 import os
 import json
+import math
 from extract_preprocess import extract_features
 from extract_preprocess import process_audio
 from termcolor import colored, cprint
@@ -66,7 +67,7 @@ def parse_osu_file(osu_file):
             object_type = int(parts[3])
             end_timestamp = None
 
-            key = x_position // 128
+            key = math.floor(64 * num_keys / 512)
 
             is_hold = bool(object_type & 128)
             if is_hold:

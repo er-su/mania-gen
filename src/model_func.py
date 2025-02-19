@@ -1,5 +1,5 @@
-import os
 import keras
+import json
 import numpy as np
 from keras import layers
 from keras import ops
@@ -95,12 +95,13 @@ def inference(model, input_data, input_mel):
     input_data = np.asarray([input_data])
     input_mel = np.asarray([input_mel])
     predictions = model({"beats": input_data, "mel": input_mel}, training=False)
+
     return predictions
 
-#mel, beats, short, long, size = prepare_input_output("../data/processed_beatmaps/lmao", difficulty=3)
-mega_mel, mega_beats, mega_short, mega_long, max_size = load_data("../data/processed_beatmaps")
-model = functional_build_model(input_shape=(None, 3), mel_shape=(None, 128))
-train_model(model, mega_mel, mega_beats, mega_short, mega_long)
-
-save_model(model)
-#print(inference(model, beats, mel))
+if __name__ == "__main__":
+    #mel, beats, short, long, size = prepare_input_output("../data/processed_beatmaps/lmao", difficulty=3)
+    mega_mel, mega_beats, mega_short, mega_long, max_size = load_data("../data/processed_beatmaps", difficulty=4)
+    model = functional_build_model(input_shape=(None, 3), mel_shape=(None, 128))
+    #train_model(model, mega_mel, mega_beats, mega_short, mega_long)
+    save_model(model)
+    #print(inference(model, beats, mel))

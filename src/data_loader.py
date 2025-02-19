@@ -32,7 +32,7 @@ def prepare_input_output(beatmap_folder, difficulty=4, num_keys=4):
         return (None, None, None, None, None)
     
     if not os.path.exists(os.path.join(beatmap_folder, f"notes_{difficulty}.json")):
-        print(colored("No matching difficulty in f{beatmap_folder}", 'yellow')) 
+        print(colored(f"No matching difficulty in {beatmap_folder}", 'yellow')) 
         return (None, None, None, None, None)
         
     for file in os.listdir(beatmap_folder):

@@ -36,7 +36,7 @@ def functional_build_model(input_shape, mel_shape, num_keys=4):
     # Gru 1 
     mel_features = layers.GRU(128, return_sequences=True)(mel_input)
     #mel_features = layers.BatchNormalization()(x)
-    #xmel_features = layers.Dropout(0.2)(x)
+    #mel_features = layers.Dropout(0.2)(x)
 
     data_features = layers.GRU(128, return_sequences=True)(data_input)
     #data_features = layers.BatchNormalization()(x)
@@ -65,7 +65,8 @@ def functional_build_model(input_shape, mel_shape, num_keys=4):
             "short": keras.losses.BinaryCrossentropy(),
             "long": keras.losses.MeanAbsoluteError(),
         },
-        loss_weights={"short": 1.0, "long": 0.5},
+        loss_weights={"short": 1.0, "long": 1},
+        metrics={"short": [keras.metrics.BinaryAccuracy(name="BinaryAccuracy", threshold=0.5)], "long":[keras.metrics.MeanAbsoluteError()]}
     )
 
     model.summary()
@@ -102,6 +103,6 @@ if __name__ == "__main__":
     #mel, beats, short, long, size = prepare_input_output("../data/processed_beatmaps/lmao", difficulty=3)
     mega_mel, mega_beats, mega_short, mega_long, max_size = load_data("../data/processed_beatmaps", difficulty=4)
     model = functional_build_model(input_shape=(None, 3), mel_shape=(None, 128))
-    #train_model(model, mega_mel, mega_beats, mega_short, mega_long)
+    train_model(model, mega_mel, mega_beats, mega_short, mega_long)
     save_model(model)
     #print(inference(model, beats, mel))

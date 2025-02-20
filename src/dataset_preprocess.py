@@ -44,13 +44,13 @@ def parse_osu_file(osu_file):
         if "Version:" in line:
             lower = line.lower()
 
-            if "easy" in lower:
+            if "easy" in lower or "ez" in lower or "beginner" in lower:
                 difficulty = 0
-            elif "normal" in lower:
+            elif "normal" in lower or "nm" in lower or "standard" in lower:
                 difficulty = 1
-            elif "hard" in lower:
+            elif "hard" in lower or "advanced" in lower or "hd" in lower:
                 difficulty = 2
-            elif "insane" in lower:
+            elif "insane" in lower or "hyper" in lower or "in" in lower or "another" in lower:
                 difficulty = 3
             else:
                 difficulty = 4
@@ -89,6 +89,7 @@ def parse_osu_file(osu_file):
 
 def process_dataset(dataset_dir, num_keys=4):
     count = 0
+    dups = "A"
     for beatmap_folder in os.listdir(dataset_dir):
         pre_folder_path = os.path.join(dataset_dir, beatmap_folder)
         if not os.path.isdir(pre_folder_path):
@@ -115,19 +116,32 @@ def process_dataset(dataset_dir, num_keys=4):
         # Now process audio and extract features
         
         audio_filename = ""
-        # Go thru all files and create mega json
+        # Go thru all files and create json
+        has_mania = False
         for file in os.listdir(pre_folder_path):
             if file.endswith(".osu"):
                 osu_path = os.path.join(pre_folder_path, file)
                 osu_data, difficulty, keys, audio_filename = parse_osu_file(osu_path)
 
                 if osu_data is None or keys != num_keys:
-                    print(colored(f"{osu_path} is wrong num of keys", 'yellow'))
+                    print(colored(f"{osu_path} is wrong num of keys or not mania", 'yellow'))
                     continue
-                
+
+                else:
+                    has_mania = True
+                # If already exists, create a new version
+                #if os.path.exists(os.path.join(new_folder_path, f"notes_{difficulty}.json")):
+                    #with open(os.path.join(new_folder_path, f"notes_{difficulty}_{dups}.json"), "w") as f:
+                        #json.dump(osu_data, f, indent=2)
+                    #dups = chr(ord(dups)+1)
+                #else:
                 with open(os.path.join(new_folder_path, f"notes_{difficulty}.json"), "w") as f:
                     json.dump(osu_data, f, indent=2)
         
+        if not has_mania:
+            os.remove(new_folder_path)
+            continue
+
         audio_path = os.path.join(pre_folder_path, audio_filename)
         if not os.path.exists(audio_path):
             print(colored(f"Missing audio file in folder {beatmap_folder}", 'red'))

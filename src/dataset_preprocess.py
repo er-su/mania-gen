@@ -34,7 +34,7 @@ def parse_osu_file(osu_file):
         if "Mode:" in line:
             if "3" not in line:
                 print(colored(f"{osu_file} is not mania gamemode", 'yellow'))
-                return None
+                return (None, None, None, None)
         
         # Check keysize
         if "CircleSize:" in line:
@@ -121,7 +121,7 @@ def process_dataset(dataset_dir, num_keys=4):
         for file in os.listdir(pre_folder_path):
             if file.endswith(".osu"):
                 osu_path = os.path.join(pre_folder_path, file)
-                osu_data, difficulty, keys, audio_filename = parse_osu_file(osu_path)
+                osu_data, difficulty, keys, temp_audio = parse_osu_file(osu_path)
 
                 if osu_data is None or keys != num_keys:
                     print(colored(f"{osu_path} is wrong num of keys or not mania", 'yellow'))
@@ -129,6 +129,7 @@ def process_dataset(dataset_dir, num_keys=4):
 
                 else:
                     has_mania = True
+                    audio_filename = temp_audio
                 # If already exists, create a new version
                 #if os.path.exists(os.path.join(new_folder_path, f"notes_{difficulty}.json")):
                     #with open(os.path.join(new_folder_path, f"notes_{difficulty}_{dups}.json"), "w") as f:

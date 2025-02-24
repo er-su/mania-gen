@@ -1,3 +1,4 @@
 data/beatmaps/
 __pycache__/
-src2/
+scr2/preprocess
+scr2/postprocess

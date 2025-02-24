@@ -35,24 +35,25 @@ def functional_build_model(input_shape, mel_shape, num_keys=4):
 
     # Gru 1 
     mel_features = layers.GRU(128, return_sequences=True)(mel_input)
-    #mel_features = layers.BatchNormalization()(x)
-    #mel_features = layers.Dropout(0.2)(x)
+    mel_features = layers.BatchNormalization()(x)
+    mel_features = layers.Dropout(0.2)(x)
 
     data_features = layers.GRU(128, return_sequences=True)(data_input)
-    #data_features = layers.BatchNormalization()(x)
-    #data_features = layers.Dropout(0.2)(x)
+    data_features = layers.BatchNormalization()(x)
+    data_features = layers.Dropout(0.2)(x)
 
     x = layers.concatenate([data_features, mel_features])
 
     # Gru 2
     x = layers.GRU(128, return_sequences=True)(x)
-    #x = layers.BatchNormalization()(x)
-    #x = layers.Dropout(0.2)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(0.2)(x)
 
     # Time Dist 1 for Short
     norm_notes = layers.TimeDistributed(layers.Dense(num_keys, activation="sigmoid", name="short"))(x)
     # Time Dist 2 for Long
-    held_notes = layers.TimeDistributed(layers.Dense(num_keys + 1, activation="relu", name="long"))(x)
+    #held_notes = layers.TimeDistributed(layers.Dense(num_keys + 1, activation="relu", name="long"))(x)
+    held_notes = layers.TimeDistributed(layers.Dense(num_keys, activation="relu", name="long"))(x)
 
     model = keras.Model(
         inputs=[data_input, mel_input],

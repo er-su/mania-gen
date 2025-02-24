@@ -57,7 +57,8 @@ def prepare_input_output(beatmap_folder, difficulty=4, num_keys=4):
 
     # Convert the notes to final form 
     short_note_matrix = np.zeros(shape=(time_steps, num_keys))
-    long_note_matrix = np.zeros(shape=(time_steps, num_keys + 1))
+    #long_note_matrix = np.zeros(shape=(time_steps, num_keys + 1))
+    long_note_matrix = np.zeros(shape=(time_steps, num_keys))
 
 
     for note in notes:
@@ -68,7 +69,7 @@ def prepare_input_output(beatmap_folder, difficulty=4, num_keys=4):
 
         index = min(int((time / duration) * time_steps), time_steps - 1)
         short_note_matrix[index, key] = 1
-        long_note_matrix[index, -1] = time
+        #long_note_matrix[index, -1] = time
 
         if is_hold:
             long_note_matrix[index, key] = end_time - time

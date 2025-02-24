@@ -15,7 +15,7 @@ def convert_to_hit_objects(predictions, time_step=20, sr=22050):
     hit_objects = []
 
     for t, short_frame in enumerate(short):
-        time = t * time_step / sr * 1000 # Convert to msec
+        time = round(t * time_step / sr * 1000) # Convert to msec
         long_frame = long[t]
         for key in range(num_keys):
             press_prob = short_frame[key]

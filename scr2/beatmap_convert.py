@@ -145,6 +145,13 @@ class Converter:
 
         return obj_list, num_keys, offset, bpm, difficulty, audiofile
         
+    def base_n_encoding(action_obj, num_keys):
+        sum = 0
+        for i, type in enumerate(action_obj):
+            sum += type * (num_keys ** i)
+        
+        return sum
+
     def generate_labels(self, obj_list, num_timesteps, num_keys):
 
         # Obj_list is of size num_timesteps x 3 where each obj is [time, key, type 0-3]
@@ -152,12 +159,19 @@ class Converter:
         for obj in new_obj:
             obj[0] = math.round(obj[0] / self.hop_len) # Value now represents index every 10ms
 
-        # Convert to individual actions of shape num_timesteps by num_keys
-        # where the values represent the type of action 
+        # Convert to action_array of length num_timesteps, where the value is num_key-base encoded
+        # for the combination of hits
         action_array = np.zeros((num_timesteps, num_keys))
         for obj in new_obj:
             time_in_10s, key, note_type = obj
             action_array[int(time_in_10s), int(key)] = note_type
+
+        action_array = np.array([self.base_n_encoding(action_obj, num_keys) for action_obj in action_array])
+
+        # Create onset array. 0 if nothing occurs, 1 if something occurs
+        onset_array = [(1 if action_val > 0 else 0) for action_val in action_array]
+
+        return action_array, onset_array
 
 
     def convert(self):

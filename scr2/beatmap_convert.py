@@ -181,11 +181,15 @@ class Converter:
             action_array[int(time_in_10s), int(key)] = note_type
 
         action_array = np.array([self.base_n_encoding(action_obj, num_keys) for action_obj in action_array])
+        
+        # Then convert action array to one-hot encoding
+        one_hot_array = np.zeros((action_array.size, 4 ** num_keys))
+        one_hot_array[np.arange(action_array.size), action_array] = 1
 
         # Create onset array. 0 if nothing occurs, 1 if something occurs
         onset_array = [(1 if action_val > 0 else 0) for action_val in action_array]
 
-        return action_array, onset_array
+        return one_hot_array, onset_array
 
     def verify(self, beatmap_folder: Path, num_parsed_osu):
         osu_files = list(beatmap_folder.rglob("*.npy"))
@@ -205,7 +209,7 @@ class Converter:
 
                 if file.suffix == ".osu":
                     beatmap, num_keys, offset, bpm, difficulty, audiofile = self.parse_osu(beatmap_folder, file.name)
-                    if beatmap.all() != -1:
+                    if num_keys != -1 or offset != -1:
                         beatmaps_info.append(
                             {"beatmap": beatmap,
                              "num_keys": num_keys,

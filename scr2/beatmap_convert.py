@@ -1,5 +1,6 @@
 import shutil
 import math
+import json
 import librosa
 import numpy as np
 from pathlib import Path
@@ -24,20 +25,23 @@ class Converter:
                  beatmap_list_path: Path,
                  output_folder_path: Path,
                  n_fft_list=[1024, 2048, 4096],
-                 hop_len=10):
+                 hop=10, #in ms
+                 beat_frac_size=48):
         
         self.beatmap_list_path = beatmap_list_path
         self.output_folder_path = output_folder_path
-        self.hop_len = int((hop_len / 1000) * 44100)
+        self.hop = hop
+        self.hop_len = int((hop / 1000) * 44100)
         self.n_fft_list = n_fft_list
+        self.beat_frac_size = beat_frac_size
 
-    #TODO set the beat frac to be one of n number of fractions to minimize noise
     def beat_frac(self, time, offset, bpm):
         beat_frac = ((time - offset) % bpm) / bpm
+        beat_frac = round(beat_frac * self.beat_frac_size)
         return beat_frac
     
     def beat_num(self, time, offset, bpm, meter=4):
-        return math.floor((((time - offset) % bpm) / bpm) * meter)
+        return math.floor(((time - offset) / bpm) % meter)
 
     def convert_audio(self, y, offset, bpm):
         mel = []
@@ -46,14 +50,14 @@ class Converter:
                                                        sr=44100,
                                                        n_fft=n_fft_val,
                                                        hop_length=self.hop_len,
-                                                       n_mels=40,
+                                                       n_mels=80,
                                                        power=2))
         mel = np.array(mel)
         mel = np.transpose(mel, (0, 2, 1))
 
         #Check
-        beat_frac = [self.beat_frac(x * self.hop_len, offset, bpm) for x in range(mel.shape[1])]
-        beat_num = [self.beat_num(x * self.hop_len, offset, bpm) for x in range(mel.shape[1])]
+        beat_frac = [self.beat_frac(x * self.hop, offset, bpm) for x in range(mel.shape[1])]
+        beat_num = [self.beat_num(x * self.hop, offset, bpm) for x in range(mel.shape[1])]
 
         return mel, beat_frac, beat_num
     
@@ -64,8 +68,6 @@ class Converter:
         with open(osu_path, mode='r', encoding="utf-8") as f:
             data = f.read().splitlines()
 
-        #print(data[:15])
-        #return -1, -1, -1, -1, -1, -1
 
         # Ensure it's mania
         i = data.index("[General]") + 1
@@ -171,7 +173,7 @@ class Converter:
         # Obj_list is of size num_timesteps x 3 where each obj is [time, key, type 0-3]
         new_obj = obj_list.copy()
         for obj in new_obj:
-            obj[0] = round(obj[0] / self.hop_len) # Value now represents index every 10ms
+            obj[0] = round(obj[0] / self.hop) # Value now represents index every 10ms
 
         # Convert to action_array of length num_timesteps, where the value is num_key-base encoded
         # for the combination of hits
@@ -180,7 +182,7 @@ class Converter:
             time_in_10s, key, note_type = obj
             action_array[int(time_in_10s), int(key)] = note_type
 
-        action_array = np.array([self.base_n_encoding(action_obj, num_keys) for action_obj in action_array])
+        action_array = np.array([int(self.base_n_encoding(action_obj, num_keys)) for action_obj in action_array])
         
         # Then convert action array to one-hot encoding
         one_hot_array = np.zeros((action_array.size, 4 ** num_keys))
@@ -189,7 +191,7 @@ class Converter:
         # Create onset array. 0 if nothing occurs, 1 if something occurs
         onset_array = [(1 if action_val > 0 else 0) for action_val in action_array]
 
-        return one_hot_array, onset_array
+        return one_hot_array, action_array, onset_array
 
     def verify(self, beatmap_folder: Path, num_parsed_osu):
         osu_files = list(beatmap_folder.rglob("*.npy"))
@@ -200,7 +202,7 @@ class Converter:
         return (beatmap_folder / "audio_features.npy").exists()
         
 
-    def convert(self):
+    def convert(self, print_json=False):
         beatmap_list = self.beatmap_list_path.iterdir()
         beatmaps_info = []
         for beatmap_folder in beatmap_list:
@@ -268,7 +270,7 @@ class Converter:
                 for beatmap in beatmaps_info:
                     count = ord('a')
                     if beatmap["num_keys"] == key_count:
-                        action_labels, onset_labels = self.generate_labels(beatmap["beatmap"],
+                        one_hot_labels, action_labels, onset_labels = self.generate_labels(beatmap["beatmap"],
                                                                            mel.shape[1],
                                                                            beatmap["num_keys"])
                         if not mel.shape[1] == len(beat_frac) == len(beat_num) == len(action_labels) == len(onset_labels):
@@ -277,10 +279,18 @@ class Converter:
                             raise Exception("Error at line 253")
 
                         np.save((key_folder / f"beatmap_{beatmap["difficulty"]}_{chr(count)}"),
-                                {"actions": action_labels,
+                                {"one_hot": one_hot_labels,
+                                 "actions": action_labels, 
                                  "onsets": onset_labels,
                                  "beatmap": beatmap["beatmap"],
                                  "difficulty": beatmap["difficulty"]})
+                        
+                        if print_json:
+                            with open(key_folder / f"beatmap_{beatmap["difficulty"]}_{chr(count)}", "w") as f:
+                                json.dump({"actions": action_labels.tolist(),
+                                     "onsets": onset_labels,
+                                     "beatmap": beatmap["beatmap"].tolist(),
+                                     "difficulty": beatmap["difficulty"]}, f, indent=2)
                         
                         count += 1
 

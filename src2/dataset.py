@@ -1,8 +1,8 @@
-from pathlib import Path
-import numpy as np
-from termcolor import colored
 import torch
 import random
+import numpy as np
+from pathlib import Path
+from termcolor import colored
 from torch.utils.data import Dataset, DataLoader
 
 class OsuDataset(Dataset):

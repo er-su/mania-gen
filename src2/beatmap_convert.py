@@ -72,7 +72,6 @@ class Converter:
         # Ensure it's mania
         i = data.index("[General]") + 1
         while data[i] != "" and "[" not in data[i]:
-            #print(i)
             line = data[i].lower()
             if "AudioFilename:" in data[i]:
                 audiofile = line.split(' ')[-1]
@@ -204,11 +203,15 @@ class Converter:
 
     def convert(self, print_json=False):
         beatmap_list = self.beatmap_list_path.iterdir()
-        beatmaps_info = []
         for beatmap_folder in beatmap_list:
+            beatmaps_info = []
             print(f"Processing {beatmap_folder.name}")
+            
+            # Create and save into folder
+            output_beatmap_folder: Path = self.output_folder_path / beatmap_folder.name
+            
             for file in beatmap_folder.iterdir():
-
+                
                 if file.suffix == ".osu":
                     beatmap, num_keys, offset, bpm, difficulty, audiofile = self.parse_osu(beatmap_folder, file.name)
                     if num_keys != -1 or offset != -1:
@@ -221,6 +224,20 @@ class Converter:
                              "audiofile": audiofile,
                             }
                         )
+
+            try:
+                output_beatmap_folder.mkdir(exist_ok=False)
+            
+            except FileExistsError as err:
+                print(colored(f"Folder {output_beatmap_folder.name} already exists. Verifying...", "blue"))
+                if not self.verify(output_beatmap_folder, len(beatmaps_info)):
+                    print(colored(f"Issue with preexisiting folder. Reproecessing...", "red"))
+                    shutil.rmtree(output_beatmap_folder)
+                    output_beatmap_folder.mkdir()
+
+                else:
+                    print(colored(f"No issues found. Skipping...", "green"))
+                    continue
             
             # Check if any valid maps
             if len(beatmaps_info) == 0:
@@ -228,30 +245,16 @@ class Converter:
                 continue
 
             try:
-                print(f"Loading audio {audiofile}")
+                print(f"Loading {audiofile}...")
                 y, sr = librosa.load(beatmap_folder / audiofile, sr=44100, mono=True)
 
             except BaseException as err:
                 print(colored(f"Unable to load audio in {beatmap_folder.name}. Skipping beatmap", "red"))
                 continue
+
+            assert(sr == 44100)
             
             mel, beat_frac, beat_num = self.convert_audio(y, offset, bpm)
-            
-            # Create and save into folder
-            output_beatmap_folder: Path = self.output_folder_path / beatmap_folder.name
-
-            try:
-                output_beatmap_folder.mkdir(exist_ok=False)
-            
-            except FileExistsError as err:
-                print(f"Folder {output_beatmap_folder.name} already exists. Verifying...")
-                if not self.verify(output_beatmap_folder, len(beatmaps_info)):
-                    print(colored(f"Issue with preexisiting folder. Reproecessing", "red"))
-                    shutil.rmtree(output_beatmap_folder)
-                    output_beatmap_folder.mkdir()
-                else:
-                    print(colored(f"No issues found. Skipping"))
-                    continue
 
             np.save(output_beatmap_folder / "audio_features.npy", 
                     {"mel": mel,

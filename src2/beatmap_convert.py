@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 from termcolor import colored
 
-DIFFICULTY_0 = [" ez","beginner","easy","light"]
+DIFFICULTY_0 = [" ez","beginner","easy"]
 DIFFICULTY_1 = [" nm","standard","normal"]
 DIFFICULTY_2 = ["hard","advanced"," hd"]
 DIFFICULTY_3 = ["insane"," in","another"]
@@ -242,6 +242,7 @@ class Converter:
             # Check if any valid maps
             if len(beatmaps_info) == 0:
                 print(colored(f"No valid beatmaps found in {beatmap_folder.name}. Skipping beatmap", "red"))
+                shutil.rmtree(output_beatmap_folder)
                 continue
 
             try:
@@ -250,6 +251,7 @@ class Converter:
 
             except BaseException as err:
                 print(colored(f"Unable to load audio in {beatmap_folder.name}. Skipping beatmap", "red"))
+                shutil.rmtree(output_beatmap_folder)
                 continue
 
             assert(sr == 44100)
@@ -270,8 +272,7 @@ class Converter:
             for key_count in num_keys_set:
                 key_folder = output_beatmap_folder / f"{key_count}k"
                 key_folder.mkdir()
-                for beatmap in beatmaps_info:
-                    count = ord('a')
+                for t, beatmap in enumerate(beatmaps_info):
                     if beatmap["num_keys"] == key_count:
                         one_hot_labels, action_labels, onset_labels = self.generate_labels(beatmap["beatmap"],
                                                                            mel.shape[1],
@@ -279,9 +280,9 @@ class Converter:
                         if not mel.shape[1] == len(beat_frac) == len(beat_num) == len(action_labels) == len(onset_labels):
                             print(colored(f"Error with generation of labels in {beatmap_folder.name}. Exiting for debugging", "red"))
                             shutil.rmtree(output_beatmap_folder)
-                            raise Exception("Error at line 253")
+                            raise Exception("Error label gen")
 
-                        np.save((key_folder / f"beatmap_{beatmap["difficulty"]}_{chr(count)}"),
+                        np.save((key_folder / f"beatmap_{beatmap["difficulty"]}_{chr(t + ord('a'))}"),
                                 {"one_hot": one_hot_labels,
                                  "actions": action_labels, 
                                  "onsets": onset_labels,
@@ -289,13 +290,12 @@ class Converter:
                                  "difficulty": beatmap["difficulty"]})
                         
                         if print_json:
-                            with open(key_folder / f"beatmap_{beatmap["difficulty"]}_{chr(count)}", "w") as f:
+                            with open(key_folder / f"beatmap_{beatmap["difficulty"]}_{chr(t + ord('a'))}", "w") as f:
                                 json.dump({"actions": action_labels.tolist(),
                                      "onsets": onset_labels,
                                      "beatmap": beatmap["beatmap"].tolist(),
                                      "difficulty": beatmap["difficulty"]}, f, indent=2)
                         
-                        count += 1
 
             if not self.verify(output_beatmap_folder, len(beatmaps_info)):
                 print(colored(f"Error in verification of {beatmap_folder.name}", "red"))

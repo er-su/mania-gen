@@ -73,8 +73,10 @@ class Collector:
             # Load in valid beatmaps
             for key_beatmap in key_folder.iterdir():
                 if not int(key_beatmap.name.split('_')[1]) in difficulty:
-                    print(f"{key_beatmap.name} is not correct difficulty")
+                    #print(f"{key_beatmap.name} is not correct difficulty")
                     continue
+                
+                print(f"{key_beatmap.name} found in {beatmap_folder.name}. Collecting...")
 
                 try:
                     labels = np.load(key_beatmap, allow_pickle=True).item()
@@ -111,6 +113,8 @@ class Collector:
                         "beat_num_tensors": beat_num_tensors,
                         "actions_tensors": actions_tensors,
                         "onsets_tensors": onsets_tensors}, self.save_path / save_fn)
+            
+        print(colored(f"Found and collected {len(mel_tensors)} beatmaps", "green"))
 
         return mel_tensors, beat_frac_tensors, beat_num_tensors, actions_tensors, onsets_tensors
                 
@@ -202,7 +206,8 @@ class Collector:
                         "actions_tensors": actions_tensors,
                         "onsets_tensors": onsets_tensors}, self.save_path / save_fn)
             
-            
+        print(colored(f"Found and collected {len(mel_tensors)} beatmaps", "green"))
+
         return mel_tensors, beat_frac_tensors, beat_num_tensors, actions_tensors, onsets_tensors
     
     def collect_from_file(self, slice_size=0, num_keys=4, difficulty=(4,5)):
@@ -225,7 +230,8 @@ class Collector:
                 return self.collect_full(num_keys=num_keys,
                                          difficulty=difficulty,
                                          save=True)
-            
+        
+        print(f"Pre-exsting {savefile_path.name} found.")
         dict = torch.load(savefile_path)
         return dict["mel_tensors"], dict["beat_frac_tensors"], dict["beat_num_tensors"], dict["actions_tensors"], dict["onsets_tensors"]
 
@@ -235,11 +241,11 @@ if __name__ == "__main__":
 
     osudataset = OsuDataset(Path("postprocess"), Path("saved"), difficulty=(3,4,5))
 
-    loader = DataLoader(osudataset, batch_size=3, shuffle=True)
+    #loader = DataLoader(osudataset, batch_size=10, shuffle=True)
 
-    mels, beat_fracs, beat_nums, onsets, actions = next(iter(loader))
-    print(f"Mels shape {mels.size()}")
-    print(f"Beat frac shape {beat_fracs.size()}")
-    print(f"Beat nums shape {beat_nums.size()}")
-    print(f"onsets shape {onsets.size()}")
-    print(f"actions shape {actions.size()}")
+    #mels, beat_fracs, beat_nums, onsets, actions = next(iter(loader))
+    #print(f"Mels shape {mels.size()}")
+    #print(f"Beat frac shape {beat_fracs.size()}")
+    #print(f"Beat nums shape {beat_nums.size()}")
+    #print(f"onsets shape {onsets.size()}")
+    #print(f"actions shape {actions.size()}")

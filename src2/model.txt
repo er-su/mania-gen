@@ -1,6 +1,6 @@
-# DISCLAIMER:
+# DISCLAIMER! DISCLAIMER! DISCLAIMER! DISCLAIMER! DISCLAIMER!
 # INITIAL ATTEMPT USING KERAS LIBRARY. KEPT FOR EDUCATIONAL
-# AND REFERENCE PURPOSES. DOES NOT FUNCTION AS INTENDED
+# AND REFERENCE PURPOSES. DOES NOT FUNCTION AS INTENDED. DO NOT RUN
 
 
 import keras
@@ -19,7 +19,8 @@ hyperparams = {
       "action_gru_output_size": 128,
       "onset_as_input_size": 128,
       "onset_dense_size": 128,
-      "action_dense_size": 128
+      "action_dense_size": 128,
+      "learning_rate": 0.001
 }
 
 class OsuGen(keras.Model):
@@ -122,12 +123,13 @@ class SqueezeLayer(keras.Layer):
     def call(self, input_tensor):
         return tf.squeeze(input_tensor)
 
-features = np.load("postprocess/1654907 Hoshimachi Suisei - Kakero/audio_features.npy", allow_pickle=True).item()
-mel = np.array([features["mel"]])
-beat_frac = np.array([features["beat_frac"]])
-beat_num = np.array([features["beat_num"]])
-print(mel.shape)
-print(beat_frac.shape)
-print(beat_num.shape)
-model = OsuGen(hyperparams)
-model([mel, beat_frac, beat_num])
+if __name__ == "__main__":
+    features = np.load("postprocess/1654907 Hoshimachi Suisei - Kakero/audio_features.npy", allow_pickle=True).item()
+    mel = np.array([features["mel"]])
+    beat_frac = np.array([features["beat_frac"]])
+    beat_num = np.array([features["beat_num"]])
+    print(mel.shape)
+    print(beat_frac.shape)
+    print(beat_num.shape)
+    model = OsuGen(hyperparams)
+    model([mel, beat_frac, beat_num])

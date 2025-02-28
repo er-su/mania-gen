@@ -72,7 +72,6 @@ class OsuGen(nn.Module):
             nn.GELU(),
             nn.Linear(in_features=self.action_dense_size,
                       out_features=self.num_combos),
-            #nn.LogSoftmax(dim=-1)
         )
 
         self.beat_frac_embd = nn.Embedding(49, self.bf_embd_dim)

@@ -1,3 +1,5 @@
+# mania-gen: beatmap generation for osu! mania
+
 This project is for learning purposes!
 
 The purpose of this program is to create a model to generate beatmaps in the rhythm game osu! mania from a given audio file (in addition to bpm and offset). The model 

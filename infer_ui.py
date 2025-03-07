@@ -4,12 +4,14 @@ from tqdm import tqdm
 from pathlib import Path
 from infer import main as infer
 
+# Paths to models used
 model_paths = [
     Path("checkpoints/V1.pt"),
     Path("checkpoints/V2.pt"),
     Path("checkpoints/V3.pt")
 ]
 
+# Tuple of accepted filetypes
 valid_extensions = (
     ".ogg",
     ".mp3",
@@ -19,6 +21,7 @@ valid_extensions = (
     ".WAV"
 )
 
+# Ensure all inputed fields are adequate
 def validate_input(audio_file, bpm, offset, artist, title):
     if not audio_file:
         raise gr.Error("Must include audio file")
@@ -48,16 +51,20 @@ def generate_infers(audio_file, bpm, offset, title, artist, progress=gr.Progress
     output_dir = Path("generated_beatmaps")
     output_dir.mkdir(exist_ok=True)
 
+    # Create folder that will become the returned osz
     osz_audio = output_dir / f"audio{audio_path.suffix}"
 
+    # Copy the audio file into osz
     shutil.copy(audio_path, osz_audio)
 
+    # Create a beatmap for each model
     for i, model in enumerate(progress.tqdm(model_paths, desc="Generating beatmaps...")):
         print(f"Creating {artist} - {title} (mania-gen) [V{i}].osu")
         output = output_dir / f"{artist} - {title} (mania-gen) [V{i}].osu"
         infer(audio_path, bpm, offset, artist=artist, title=title, model_state_dic=model, save_path=output)
         output_files.append(str(output))
 
+    # Zip and convert to osz
     osz_filename = Path(f"{artist} - {title}")
     osz_filename = Path(shutil.make_archive(osz_filename, "zip", output_dir))
     osz_filename = osz_filename.rename(osz_filename.with_suffix(".osz"))
@@ -94,6 +101,7 @@ with gr.Blocks() as ui:
                                                          show_progress="full",
                                                          show_progress_on=[process_button, d1],
                                                          trigger_mode="once")
+    
     d1.click(fn=download, inputs=None, outputs=[process_button, d1], show_progress="full")
 
 if __name__ == "__main__":

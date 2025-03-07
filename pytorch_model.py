@@ -17,6 +17,7 @@ hyperparams = {
       "learning_rate": 0.0008
 }
 
+# Create model given hyperparams and number of keys
 class OsuGen(nn.Module):
     def __init__(self, hyperparams, num_keys=4, difficulty=(4,5)):
         super().__init__()
@@ -33,6 +34,7 @@ class OsuGen(nn.Module):
         self.num_combos = 4 ** num_keys
         self.CUDA = torch.cuda.is_available()
         
+        # CNN takes mels as input
         self.convo = nn.Sequential(
             nn.Conv2d(3, 8, (5,3), stride=(1,2), padding=(2,1)),
             nn.BatchNorm2d(8),
@@ -48,12 +50,14 @@ class OsuGen(nn.Module):
             nn.GELU()
         )
 
+        # GRU takes output of CNN + beat_fracs + beat_num
         self.onset_GRU = nn.GRU(input_size=(320 + self.bf_embd_dim + self.bn_embd_dim),
                                 hidden_size=self.onset_gru_size,
                                 num_layers=self.num_gru_layers,
                                 batch_first=True,
                                 bidirectional=True)
         
+        # Feed foward layers
         self.onset_dense = nn.Sequential(
             nn.Linear(in_features=self.onset_gru_size * 2, out_features=self.onset_dense_size),
             nn.GELU(),
@@ -62,13 +66,17 @@ class OsuGen(nn.Module):
         )
 
         self.flatten = nn.Flatten(start_dim=2, end_dim=3)
+        
+        # Feed forward layers from the onset RNN into the action  GRU
         self.onset_as_input = nn.Sequential(nn.Linear(self.action_gru_size * 2, self.action_dense_size), nn.GELU())
         
+        # Takes in the input of the onset GRU + onset GRU output + actions of previous timestep
         self.action_GRU = nn.GRU(input_size=(320 + self.action_dense_size + self.bf_embd_dim + self.bn_embd_dim + self.action_embd_dim),
                                  hidden_size=self.action_gru_size,
                                  num_layers=self.num_gru_layers,
                                  batch_first=True)
         
+        # Feed forward layers
         self.action_dense = nn.Sequential(
             nn.Linear(in_features=self.action_gru_size,
                       out_features=self.action_dense_size),
@@ -77,12 +85,13 @@ class OsuGen(nn.Module):
                       out_features=self.num_combos),
         )
 
+        # Embeddings for action (in base n encoding), beat fracs, and beat nums
         self.beat_frac_embd = nn.Embedding(49, self.bf_embd_dim)
         self.beat_num_embd = nn.Embedding(4, self.bn_embd_dim)
         self.action_embd = nn.Embedding(self.num_combos, self.action_embd_dim)
 
     def forward(self, mel, beat_frac, beat_num, actions):
-        # Onsets
+        # Find onsets
         conv_output = self.convo(mel)
         conv_flat = self.flatten(conv_output.permute(0, 2, 1, 3))
 
@@ -125,6 +134,7 @@ class OsuGen(nn.Module):
         prev = torch.zeros([2, mels.shape[0], self.action_gru_size])
         concat_in = torch.concat([conv_flat, bf_embd, bn_embd, onsets_as_input], dim=-1)
 
+        # Ensure to pass in the previous timestep's information
         for i in range(mels.shape[2]):
             full_in = torch.cat([concat_in[:, i:i+1], initial_action_embd], dim=-1)
             action_gru_out, prev = self.action_GRU(full_in, prev)

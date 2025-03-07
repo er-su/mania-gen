@@ -6,6 +6,7 @@ from pytorch_model import OsuGen
 from pytorch_model import hyperparams
 from torch.utils.data import DataLoader, random_split
 
+# Given a dataset, model, and hyperparameters, trains the model
 class Trainer:
     def __init__(self, model: OsuGen, dataset: OsuDataset, hyperparams, checkpoint_path: Path=Path("checkpoints")):
         self.model = model
@@ -27,6 +28,7 @@ class Trainer:
         self.pos_action_alpha = 1.28
         self.cuda = torch.cuda.is_available()
     
+    # Training for a single epoch
     def train_one_epoch(self, epoch_index):
 
         print(colored(f"######### EPOCH {epoch_index} TRAINING #########", "blue"))
@@ -49,7 +51,7 @@ class Trainer:
             # Flatten across all batches into single mega tensor to calculate loss
             onset_preds = torch.reshape(onset_preds, [-1])
             onsets = torch.reshape(onsets, [-1])
-            # softmax applied to convert probabilites for all possible actions
+            # Softmax applied to convert to probabilites for all possible actions
             action_preds = torch.reshape(action_preds, [-1, action_preds.shape[-1]]).softmax(dim=-1) # batch, timestep, num_combo -> batch * timestep, num_combo
             actions = torch.reshape(actions, [-1])
 
@@ -74,6 +76,7 @@ class Trainer:
             print(f"Batch {i} onset accuracy: {onset_acc}")
             print(f"Batch {i} action accuracy: {action_acc}")
 
+    # Perform validation for a single epoch
     def val_one_epoch(self, epoch_index):
         print(colored(f"######### EPOCH {epoch_index} VALIDATI #########", "blue"))
 
@@ -122,6 +125,7 @@ class Trainer:
 
         return (running_vloss / (i + 1))
     
+    # Train a brand new model
     def train(self):
         if self.cuda:
             self.model.to("cuda")
@@ -135,6 +139,7 @@ class Trainer:
                 save_fn = f"new_model_{epoch}_{avg_vloss}.pt"
                 torch.save(self.model.state_dict(), self.checkpoint_path / save_fn)
 
+    # Pass in a pre-existing model from a checkpoint to train from
     def train_from_checkpoint(self, checkpoint_file: Path):
         self.model.load_state_dict(torch.load(checkpoint_file))
         if self.cuda:
@@ -148,6 +153,9 @@ class Trainer:
                 save_fn = f"model_{epoch}_{avg_vloss}.pt"
                 torch.save(self.model.state_dict(), self.checkpoint_path / save_fn)
 
+# Define focal losses for both onsets and actions
+# Based on paper "Focal loss for dense object detection"
+# by Lin, T.Y., et al
 class FocalLosses:
     def focal_loss(y_actual, y_pred, gamma, alpha, pos_alpha):
         return -((y_actual * pos_alpha * (1 - y_pred) ** gamma * torch.log(y_pred) + 
@@ -160,7 +168,8 @@ if __name__ == "__main__":
     print(f"Running with cuda: {torch.cuda.is_available()}")
     model = OsuGen(hyperparams=hyperparams, difficulty=(3,4,5))
     train_from = Path("checkpoints/V1.pt")
-    # Train using preeisting dataset and dataloader
+    # Train using also preexisting dataset and dataloader 
+    # Can be found at https://drive.google.com/drive/folders/1wNUPNz9u28aUMQuqA6e9-OwSxL_SJ6qw?usp=sharing
     dataset = OsuDataset2(Path("beatmap/4keys"), Path("audio"))
     checkpoint_path = Path("checkpoints")
 

@@ -20,8 +20,8 @@ DIFFICULTIES = [DIFFICULTY_0,
                 DIFFICULTY_3,
                 DIFFICULTY_4]
 
-FILETYPES = [".mp3", ".wav", ".ogg"]
-
+# Takes in a folder of osu! beatmap folders and processes/converts them into 
+# a series of mel spetrograms and corresponding labels for onsets and actions
 class Converter:
     def __init__(self,
                  beatmap_list_path: Path,
@@ -37,14 +37,22 @@ class Converter:
         self.n_fft_list = n_fft_list
         self.beat_frac_size = beat_frac_size
 
+    # Takes in a time in ms and returns what fraction of the beat that
+    # time resides in, from [0.0 to 1.0). This value is then multiplied
+    # by a const, so the values reside between 0 to beat_frac_size - 1
     def beat_frac(self, time, offset, bpm):
         beat_frac = ((time - offset) % bpm) / bpm
         beat_frac = round(beat_frac * self.beat_frac_size)
         return beat_frac
     
+    # Returns the integer of what beat number a time
+    # resides in based on the meter
+    # e.g. 0, 1, 2, 3 in a 4/4 meter
     def beat_num(self, time, offset, bpm, meter=4):
         return math.floor(((time - offset) / bpm) % meter)
 
+    # Takes in a loaded audio file and returns n_fft_list
+    # spectrograms, beat fracs, and beat nums
     def convert_audio(self, y, offset, bpm, eps=1-9):
         y = y + eps
         mel = []
@@ -65,6 +73,11 @@ class Converter:
 
         return mel, beat_frac, beat_num
     
+    # Given an osu file, it first verifies if it meets the given criteria:
+    # The map is an osu! mania map, the map has only 1 bpm, the map is 4/4
+    # If the above conditions are met, returns an array of all hit objects,
+    # key count, offset, bpm (lenght in ms between each beat to be exact),
+    # difficulty, and the name of the audio file within the beatmap folder
     def parse_osu(self, beatmap_folder, osu_fn):
         print(f"Parsing {osu_fn}")
         osu_path = beatmap_folder / osu_fn
@@ -72,8 +85,7 @@ class Converter:
         with open(osu_path, mode='r', encoding="utf-8") as f:
             data = f.read().splitlines()
 
-
-        # Ensure it's mania
+        # Ensure it's mania gamemode
         i = data.index("[General]") + 1
         while data[i] != "" and "[" not in data[i]:
             line = data[i].lower()
@@ -125,7 +137,6 @@ class Converter:
             timing_pts.append(data[i])
             i += 1
 
-
         bpms = []
         meters = []
         for tp in timing_pts:
@@ -163,7 +174,10 @@ class Converter:
         obj_list[obj_list[:,0].argsort()]
 
         return obj_list, num_keys, offset, bpm, difficulty, audiofile
-        
+    
+    # Given an array where each position corresponds to a key
+    # and the values correspond to a note type, apply base n encoding
+    # where n = number of keys. Returns the value
     def base_n_encoding(self, action_obj, num_keys):
         sum = 0
         for i, type in enumerate(action_obj):
@@ -171,6 +185,11 @@ class Converter:
         
         return sum
 
+    # Take in the array of all objects and snaps each object to 
+    # the nearest value that is divisble by self.hop. It then generates
+    # the corresponding onset and action labels. Onsets represent whether 
+    # an object occurs at a given time. Actions represent the combination 
+    # of key presses and note types into a single value
     def generate_labels(self, obj_list, num_timesteps, num_keys):
 
         # Obj_list is of size num_timesteps x 3 where each obj is [time, key, type 0-3]
@@ -192,6 +211,7 @@ class Converter:
 
         return action_array, onset_array
 
+    # Ensures a given folder for a given beatmap has all necessary values
     def verify(self, beatmap_folder: Path, num_parsed_osu):
         osu_files = list(beatmap_folder.rglob("*.npy"))
 
@@ -200,7 +220,8 @@ class Converter:
         
         return (beatmap_folder / "audio_features.npy").exists()
         
-
+    # Goes through the beatmap directory and converts all folders
+    # to corresponding spectrograms and labels
     def convert(self, print_json=False):
         beatmap_list = self.beatmap_list_path.iterdir()
         for beatmap_folder in beatmap_list:
@@ -211,7 +232,6 @@ class Converter:
             output_beatmap_folder: Path = self.output_folder_path / beatmap_folder.name
             
             for file in beatmap_folder.iterdir():
-                
                 if file.suffix == ".osu":
                     beatmap, num_keys, offset, bpm, difficulty, audiofile = self.parse_osu(beatmap_folder, file.name)
                     if num_keys != -1 or offset != -1:
@@ -224,7 +244,8 @@ class Converter:
                              "audiofile": audiofile,
                             }
                         )
-
+            # Create output folder, if already exists, verify
+            # If verification fails, clear and reprocess
             try:
                 output_beatmap_folder.mkdir(exist_ok=False)
             
@@ -244,7 +265,8 @@ class Converter:
                 print(colored(f"No valid beatmaps found in {beatmap_folder.name}. Skipping beatmap", "red"))
                 shutil.rmtree(output_beatmap_folder)
                 continue
-
+            
+            # Attempt to load audio
             try:
                 print(f"Loading {audiofile}...")
                 y, sr = torchaudio.load(beatmap_folder / audiofile)
@@ -258,7 +280,6 @@ class Converter:
                 shutil.rmtree(output_beatmap_folder)
                 continue
 
-            
             mel, beat_frac, beat_num = self.convert_audio(y, offset, bpm)
 
             np.save(output_beatmap_folder / "audio_features.npy", 
@@ -280,6 +301,7 @@ class Converter:
                         action_labels, onset_labels = self.generate_labels(beatmap["beatmap"],
                                                                            mel.shape[1],
                                                                            beatmap["num_keys"])
+                        
                         if not mel.shape[1] == len(beat_frac) == len(beat_num) == len(action_labels) == len(onset_labels):
                             print(colored(f"Error with generation of labels in {beatmap_folder.name}. Exiting for debugging", "red"))
                             shutil.rmtree(output_beatmap_folder)
@@ -297,8 +319,8 @@ class Converter:
                                      "onsets": onset_labels,
                                      "beatmap": beatmap["beatmap"].tolist(),
                                      "difficulty": beatmap["difficulty"]}, f, indent=2)
-                        
 
+            # Perform verify             
             if not self.verify(output_beatmap_folder, len(beatmaps_info)):
                 print(colored(f"Error in verification of {beatmap_folder.name}", "red"))
                 shutil.rmtree(output_beatmap_folder)

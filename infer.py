@@ -6,6 +6,8 @@ from pytorch_model import OsuGen
 from beatmap_convert import Converter
 from pytorch_model import hyperparams
 
+# Given an audio file, bpm, offset, artist name, song title, output dir, and model path
+# perform inference on the audio with the model, then generate a .osu file
 def main(audio_path: Path,
          bpm,
          offset,
@@ -18,6 +20,7 @@ def main(audio_path: Path,
     if save_path == None:
         save_path = Path(f"{artist} - {title} ({user}) [placeholder difficulty].osu")
 
+    # Load in converter and model
     converter = Converter(None, None)
     model = OsuGen(hyperparams)
     model.load_state_dict(torch.load(model_state_dic, map_location=torch.device("cpu")))
@@ -30,6 +33,7 @@ def main(audio_path: Path,
     if sr != 44100:
         y = torchaudio.functional.resample(y, sr, 44100)
     
+    # Convert to tensor and pad with batch_size = 1
     mels, beat_fracs, beat_nums = converter.convert_audio(y, offset, bpm)
     mels = torch.as_tensor(np.array(mels)).unsqueeze(dim=0)
     beat_fracs = torch.as_tensor(beat_fracs).unsqueeze(dim=0)
@@ -52,6 +56,7 @@ def main(audio_path: Path,
                 action.append(key_vals)
             decoded_beatmap.append(action)
     
+    # Create an array of the lines that will be written into the .osu file
     hit_objects = []
     is_held = [False, False, False, False]
     held_start_lines = [[],[],[],[]]
@@ -96,6 +101,7 @@ def main(audio_path: Path,
 
     suffix = audio_path.suffix
 
+    # Write osu file
     with open(save_path, "w") as f:
         f.write("osu file format v14\n\n")
 
@@ -153,6 +159,9 @@ def main(audio_path: Path,
         f.write('[HitObjects]\n')
         f.write('\n'.join(hit_objects))
 
+# Given a value and the number of keys
+# convert a single integer back into
+# the combination of key presses and note types
 def base_n_decoding(index, num_keys = 4):
     combo = []
     for i in range(num_keys):

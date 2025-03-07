@@ -5,6 +5,10 @@ from pathlib import Path
 from termcolor import colored
 from torch.utils.data import Dataset, DataLoader
 
+# Subclass of the torch.utils.data.Dataset class
+# Retrives and loads an array of processed beatmaps
+# (meaning labels + mels + beat frac/beat num) for the given difficulty
+# The beatmaps can either be in full or a slice of fixed size
 class OsuDataset(Dataset):
     def __init__(self, postprocess_path: Path, save_path: Path, num_keys=4, difficulty=(4,5), slice=True):
         self.postprocess_path = postprocess_path
@@ -12,6 +16,9 @@ class OsuDataset(Dataset):
         self.num_keys = num_keys
         self.difficulty = difficulty
         self.collector = Collector(postprocess_path, save_path)
+
+        # Attempts to find preexisting file of requirements (slice/no slice and difficulty)
+        # If not found, computes and saves it to be used again in the future
         if slice:
             self.mels, self.beat_fracs, self.beat_nums, self.actions, self.onsets = self.collector.collect_from_file(slice_size=3000, num_keys=num_keys, difficulty=difficulty)
         else:
@@ -29,13 +36,16 @@ class OsuDataset(Dataset):
 
         return mels, beat_fracs, beat_nums, onsets, actions
 
+# Given a folder of postprocessed maps, will go through collecting
+# all beatmaps that meet the necessary conditions (difficulty and
+# number of keys)
 class Collector:
-
     def __init__(self, postprocess_path: Path, save_path: Path):
         self.postprocess_path = postprocess_path
         self.save_path = save_path
 
-
+    # Collect given dif and number of keys. If save is true, saves
+    # the collected data as .pt file
     def collect_full(self, num_keys=4, difficulty=(4,5), save=True):
         mel_tensors = []
         beat_frac_tensors = []
@@ -78,6 +88,7 @@ class Collector:
                 
                 print(f"{key_beatmap.name} found in {beatmap_folder.name}. Collecting...")
 
+                # Load in labels
                 try:
                     labels = np.load(key_beatmap, allow_pickle=True).item()
                 except OSError as err:
@@ -98,6 +109,7 @@ class Collector:
 
         assert(len(mel_tensors) == len(actions_tensors))
 
+        # Save if necessary
         if save:
             difficulty_fn = ""
             for dif in difficulty:
@@ -118,8 +130,10 @@ class Collector:
 
         return mel_tensors, beat_frac_tensors, beat_num_tensors, actions_tensors, onsets_tensors
                 
-
-    def collect_slice(self, slice_size=3000, num_keys=4, difficulty=(4,5), save=True):
+    # Collect given dif and number of keys. If save is true, saves
+    # the collected data as .pt file. Collects a random slice of
+    # the original beatmap of size slice_size
+    def collect_slice(self, slice_size=5000, num_keys=4, difficulty=(4,5), save=True):
         mel_tensors = []
         beat_frac_tensors = []
         beat_num_tensors = []
@@ -190,7 +204,6 @@ class Collector:
         assert(len(mel_tensors) == len(actions_tensors))
 
         if save:
-
             difficulty_fn = ""
             for dif in difficulty:
                 difficulty_fn += f"_{dif}"
@@ -205,11 +218,13 @@ class Collector:
                         "beat_num_tensors": beat_num_tensors,
                         "actions_tensors": actions_tensors,
                         "onsets_tensors": onsets_tensors}, self.save_path / save_fn)
-            
+        
         print(colored(f"Found and collected {len(mel_tensors)} beatmaps", "green"))
 
         return mel_tensors, beat_frac_tensors, beat_num_tensors, actions_tensors, onsets_tensors
     
+    # Checks to see if a .pt file exists with the given conditions. If not found
+    # collects and saves it, then returns the newly generated dataset
     def collect_from_file(self, slice_size=0, num_keys=4, difficulty=(4,5)):
         difficulty_fn = ""
         sliced = "sliced" if slice_size > 0 else "full"
@@ -230,7 +245,7 @@ class Collector:
                 return self.collect_full(num_keys=num_keys,
                                          difficulty=difficulty,
                                          save=True)
-        
+        # Else load in file and return
         print(f"Pre-exsting {savefile_path.name} found.")
         dict = torch.load(savefile_path)
         return dict["mel_tensors"], dict["beat_frac_tensors"], dict["beat_num_tensors"], dict["actions_tensors"], dict["onsets_tensors"]

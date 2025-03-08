@@ -39,7 +39,7 @@ def validate_input(audio_file, bpm, offset, artist, title):
 
 def download():
     return [gr.Button("Generate Beatmap"),
-            gr.DownloadButton(label="First Generate a Map!", interactive=False)]
+            gr.DownloadButton(label="Generate a Map First!", interactive=False)]
 
 def generate_infers(audio_file, bpm, offset, title, artist, progress=gr.Progress()):
     if not audio_file.endswith(valid_extensions): 
@@ -67,15 +67,20 @@ def generate_infers(audio_file, bpm, offset, title, artist, progress=gr.Progress
     # Zip and convert to osz
     osz_filename = Path(f"{artist} - {title}")
     osz_filename = Path(shutil.make_archive(osz_filename, "zip", output_dir))
+    if osz_filename.with_suffix(".osz").exists(): 
+        osz_filename.with_suffix(".osz").unlink()
+        print("Deleting preexisting file")
+    
     osz_filename = osz_filename.rename(osz_filename.with_suffix(".osz"))
-
     shutil.rmtree(output_dir)
 
+    print("Done creating .osz file")
+
     return [gr.Button("Generate Beatmp", visible=True),
-            gr.DownloadButton(label="Download .osz File", value=osz_filename, interactive=True)]
+            gr.DownloadButton(label=f"Download {osz_filename.stem} File", value=osz_filename, interactive=True)]
 
 with gr.Blocks() as ui:
-    gr.Markdown("# Beatmap Generator")
+    gr.Markdown("osu! mania Beatmap Generator")
 
     with gr.Column():
         with gr.Row():
@@ -90,7 +95,7 @@ with gr.Blocks() as ui:
 
     with gr.Row():
         process_button = gr.Button("Generate Beatmap", visible=True)
-        d1 = gr.DownloadButton(label="First Generate a Map!", interactive=False)
+        d1 = gr.DownloadButton(label="Generate a Map First!", interactive=False)
 
     process_button.click(fn=validate_input, 
                          inputs=[audio_input, bpm_input, offset_input, title_input, artist_input],

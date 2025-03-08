@@ -166,11 +166,12 @@ class FocalLosses:
     
 if __name__ == "__main__":
     print(f"Running with cuda: {torch.cuda.is_available()}")
-    model = OsuGen(hyperparams=hyperparams, difficulty=(3,4,5))
+    model = OsuGen(hyperparams=hyperparams, difficulty=(0,1,2,3,4,5))
     train_from = Path("checkpoints/V1.pt")
-    # Train using also preexisting dataset and dataloader 
+    # Train also using preexisting dataset and dataloader by Sihun Lee & Dasaem Jeong
     # Can be found at https://drive.google.com/drive/folders/1wNUPNz9u28aUMQuqA6e9-OwSxL_SJ6qw?usp=sharing
-    dataset = OsuDataset2(Path("beatmap/4keys"), Path("audio"))
+    # dataset = OsuDataset2(Path("beatmap/4keys"), Path("audio")) <-using their provided dataset class
+    dataset = OsuDataset(Path("preprocess"), Path("postprocess"), difficulty=(0,1,2,3,4,5))
     checkpoint_path = Path("checkpoints")
 
     trainer = Trainer(model, dataset, hyperparams, checkpoint_path)

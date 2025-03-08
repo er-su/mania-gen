@@ -5,37 +5,6 @@ from pathlib import Path
 from termcolor import colored
 from torch.utils.data import Dataset, DataLoader
 
-# Subclass of the torch.utils.data.Dataset class
-# Retrives and loads an array of processed beatmaps
-# (meaning labels + mels + beat frac/beat num) for the given difficulty
-# The beatmaps can either be in full or a slice of fixed size
-class OsuDataset(Dataset):
-    def __init__(self, postprocess_path: Path, save_path: Path, num_keys=4, difficulty=(4,5), slice=True):
-        self.postprocess_path = postprocess_path
-        self.save_path = save_path
-        self.num_keys = num_keys
-        self.difficulty = difficulty
-        self.collector = Collector(postprocess_path, save_path)
-
-        # Attempts to find preexisting file of requirements (slice/no slice and difficulty)
-        # If not found, computes and saves it to be used again in the future
-        if slice:
-            self.mels, self.beat_fracs, self.beat_nums, self.actions, self.onsets = self.collector.collect_from_file(slice_size=3000, num_keys=num_keys, difficulty=difficulty)
-        else:
-            self.mels, self.beat_fracs, self.beat_nums, self.actions, self.onsets = self.collector.collect_from_file(num_keys=num_keys, difficulty=difficulty)
-
-    def __len__(self):
-        return len(self.mels)
-    
-    def __getitem__(self, index):
-        mels = self.mels[index]
-        beat_fracs = self.beat_fracs[index]
-        beat_nums = self.beat_nums[index]
-        onsets = self.onsets[index]
-        actions = self.actions[index]
-
-        return mels, beat_fracs, beat_nums, onsets, actions
-
 # Given a folder of postprocessed maps, will go through collecting
 # all beatmaps that meet the necessary conditions (difficulty and
 # number of keys)
@@ -59,7 +28,7 @@ class Collector:
             key_folder = beatmap_folder / f"{num_keys}k"
             audiofile = beatmap_folder / "audio_features.npy"
 
-            # Verify that there is 4k and features exist
+            # Verify that there is a 4 key map and features exist
             if not key_folder.exists():
                 print(colored(f"{beatmap_folder.name} does not have {num_keys}k folder", "yellow"))
                 continue
@@ -107,6 +76,7 @@ class Collector:
                 actions_tensors.append(actions_tensor)
                 onsets_tensors.append(onsets_tensor)
 
+        # Quick verification of len
         assert(len(mel_tensors) == len(actions_tensors))
 
         # Save if necessary
@@ -249,6 +219,39 @@ class Collector:
         print(f"Pre-exsting {savefile_path.name} found.")
         dict = torch.load(savefile_path)
         return dict["mel_tensors"], dict["beat_frac_tensors"], dict["beat_num_tensors"], dict["actions_tensors"], dict["onsets_tensors"]
+
+
+# Subclass of the torch.utils.data.Dataset class
+# Retrives and loads an array of processed beatmaps
+# (meaning labels + mels + beat frac/beat num) for the given difficulty
+# The beatmaps can either be in full or a slice of fixed size
+class OsuDataset(Dataset):
+    def __init__(self, postprocess_path: Path, save_path: Path, num_keys=4, difficulty=(4,5), slice=True):
+        self.postprocess_path = postprocess_path
+        self.save_path = save_path
+        self.num_keys = num_keys
+        self.difficulty = difficulty
+        self.collector = Collector(postprocess_path, save_path)
+
+        # Attempts to find preexisting file of requirements (slice/no slice and difficulty)
+        # If not found, computes and saves it to be used again in the future
+        if slice:
+            self.mels, self.beat_fracs, self.beat_nums, self.actions, self.onsets = self.collector.collect_from_file(slice_size=3000, num_keys=num_keys, difficulty=difficulty)
+        else:
+            self.mels, self.beat_fracs, self.beat_nums, self.actions, self.onsets = self.collector.collect_from_file(num_keys=num_keys, difficulty=difficulty)
+
+    def __len__(self):
+        return len(self.mels)
+    
+    def __getitem__(self, index):
+        mels = self.mels[index]
+        beat_fracs = self.beat_fracs[index]
+        beat_nums = self.beat_nums[index]
+        onsets = self.onsets[index]
+        actions = self.actions[index]
+
+        return mels, beat_fracs, beat_nums, onsets, actions
+
 
 if __name__ == "__main__":
     osudataset = OsuDataset(Path("postprocess"), Path("saved"), difficulty=(0,1,2,3,4,5))

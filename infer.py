@@ -50,7 +50,9 @@ def main(audio_path: Path,
     # Convert back to ms and keys
     for i, action_pred in enumerate(out):
         if action_pred.item() > 0:
-            action = [i * 10]
+            # TODO: Snap to nearest 1/4 beat if within 10 ms of it
+            #action = [i * 10]
+            action = [snap_to(i * 10, bpm, offset)]
             combo = base_n_decoding(action_pred.item(), num_keys=4)
             for key_vals in combo:
                 action.append(key_vals)
@@ -169,6 +171,20 @@ def base_n_decoding(index, num_keys = 4):
         combo.append(value)
 
     return combo
+
+def snap_to(time, bpm, offset):
+    time_jump = float((60000 / bpm) / 4)
+    lower_bound = ((time - offset) // time_jump) * time_jump + offset
+    upper_bound = lower_bound + time_jump
+
+    if abs(lower_bound - time) < 15:
+        return round(lower_bound)
+    
+    elif abs(upper_bound - time) < 15:
+        return round(upper_bound)
+    
+    else:
+        return time
 
 if __name__ == "__main__":
     #main(Path("testsongs/colorful.mp3"), 192, 615)

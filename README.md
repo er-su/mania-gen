@@ -10,3 +10,8 @@ a recurrent neural network to convert onsets to predict combinations of key pres
 
 This model was trained on a dataset of about 200 songs, in addition to [another dataset](https://drive.google.com/drive/folders/1wNUPNz9u28aUMQuqA6e9-OwSxL_SJ6qw?usp=sharing) created by
 Sihun Lee & Dasaem Jeong. This project took inspiration from many sources, a few being [osumapper by kotritrona](https://github.com/kotritrona/osumapper) and [AutoOsu by issyun](https://github.com/issyun/AutoOsu)
+
+
+# Video Demo (Sound On)
+https://github.com/user-attachments/assets/0f66774b-3306-4deb-9f90-a4de7aa19d3c
+
